@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ValidadorService {
 
@@ -18,7 +20,7 @@ public class ValidadorService {
 
             while ((linha = reader.readLine()) != null) {
 
-               String[] colunas = linha.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+               String[] colunas = linha.split(";");
 
                 if (colunas.length < 5) continue;
 
@@ -34,7 +36,7 @@ public class ValidadorService {
                 }
 
                 if (!ValidadorUtils.isRazaoSocialValida(razaoSocial)) {
-                    System.out.println("Razao social invalido: " + razaoSocial);
+                    System.out.println("Razão social inválida: " + razaoSocial);
                     continue;
                 }
 
@@ -47,9 +49,67 @@ public class ValidadorService {
             }
         }
         catch (IOException e){
-            System.out.println("Erro ao ler o arquivo");
+            throw new RuntimeException("Erro ao ler o aquivo" + caminhoArquivo, e);
         }
         return dadosValidados;
+    }
+
+    public static Map<String,OperadoraCadastro> carregarOperadoras(Path caminhoArquivo) {
+
+        Map<String,OperadoraCadastro> operadoras = new HashMap<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(caminhoArquivo.toFile()))) {
+
+            String linha;
+            reader.readLine();
+
+            while((linha = reader.readLine()) != null) {
+
+                String[] colunas = linha.split(";");
+
+                if (colunas.length < 11) continue;
+
+                String regAns = colunas[0].replace("\"", "").trim();
+                String cnpj = colunas[1].replace("\"", "").trim();
+                String modalidade = colunas[4].replace("\"", "").trim();
+                String uf = colunas[10].replace("\"", "").trim();
+
+                operadoras.putIfAbsent(cnpj,new OperadoraCadastro(cnpj,regAns,modalidade,uf));
+
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao ler o aquivo da ANS" + caminhoArquivo, e);
+        }
+        return operadoras;
+    }
+
+    public static List<RegistroDespesaEnriquecido> enriquecerDados (List<RegistroDespesa> registroDespesas, Map<String,OperadoraCadastro> operadoras) {
+
+        List<RegistroDespesaEnriquecido> dadosEnriquecidos = new ArrayList<>();
+
+        for (RegistroDespesa registro : registroDespesas) {
+
+            String cnpjLimpo = registro.getCnpj().replaceAll("\\D","");
+
+            OperadoraCadastro cadastro = operadoras.get(cnpjLimpo);
+
+            if (cadastro != null) {
+                dadosEnriquecidos.add(new RegistroDespesaEnriquecido(
+                        registro,
+                        cadastro.getRegAns(),
+                        cadastro.getModalidade(),
+                        cadastro.getUf()));
+            }
+            else {
+                dadosEnriquecidos.add(new RegistroDespesaEnriquecido(
+                        registro,
+                        "N/A",
+                        "IGNORADO",
+                        "IGNORADO"
+                ));
+            }
+        }
+        return dadosEnriquecidos;
     }
 
     private static double converterParaDouble(String texto) {
