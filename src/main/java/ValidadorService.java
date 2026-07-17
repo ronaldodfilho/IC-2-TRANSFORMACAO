@@ -1,0 +1,70 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ValidadorService {
+
+    public static List<RegistroDespesa> carregarCsv (Path caminhoArquivo) {
+
+        List<RegistroDespesa> dadosValidados = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(caminhoArquivo.toFile()))){
+
+            String linha;
+            reader.readLine();
+
+            while ((linha = reader.readLine()) != null) {
+
+               String[] colunas = linha.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+
+                if (colunas.length < 5) continue;
+
+                String cnpj = colunas[0].trim();
+                String razaoSocial = colunas[1].trim();
+                String trimestre = colunas[2].trim();
+                String ano = colunas[3].trim();
+                Double valorDespesas = converterParaDouble(colunas[4].trim());
+
+                if(!ValidadorUtils.isCnpjValido(cnpj)) {
+                    System.out.println("CNPJ invalido: " + cnpj);
+                    continue;
+                }
+
+                if (!ValidadorUtils.isRazaoSocialValida(razaoSocial)) {
+                    System.out.println("Razao social invalido: " + razaoSocial);
+                    continue;
+                }
+
+                if (!ValidadorUtils.isValorPositivo(valorDespesas)) {
+                    System.out.println("Valor invalido: " + valorDespesas);
+                    continue;
+                }
+
+                dadosValidados.add( new RegistroDespesa(cnpj,razaoSocial,trimestre,ano,valorDespesas) );
+            }
+        }
+        catch (IOException e){
+            System.out.println("Erro ao ler o arquivo");
+        }
+        return dadosValidados;
+    }
+
+    private static double converterParaDouble(String texto) {
+
+        if (texto == null || texto.isEmpty()) return 0.0;
+        String limpo = texto.trim().replace("\"", "");
+        if (limpo.isEmpty() || limpo.equals("-")) return 0.0;
+
+        limpo = limpo.replace(",",".");
+
+        try {
+            return Double.parseDouble(limpo);
+        }
+        catch (NumberFormatException e){
+            return 0.0;
+        }
+    }
+}
