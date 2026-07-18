@@ -1,11 +1,10 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class ValidadorService {
 
@@ -110,6 +109,121 @@ public class ValidadorService {
             }
         }
         return dadosEnriquecidos;
+    }
+
+    public static void gerarDespesasAgregadas(List<RegistroDespesaEnriquecido> dados, Path caminhoSaida) {
+
+        Map<String, Map<String,Double>> agrupamento = new HashMap<>();
+
+        for (RegistroDespesaEnriquecido dado : dados){
+
+            RegistroDespesa registro = dado.getRegistroDespesa();
+
+            String chaveOperadora = registro.getRazaoSocial() + "|" + dado.getUf();
+            String chaveTrimestre = registro.getAno() + "|" + registro.getTrimestre();
+
+            Map<String,Double> valoresPorTrimestre = agrupamento.get(chaveOperadora);
+
+            if (valoresPorTrimestre == null) {
+                valoresPorTrimestre = new HashMap<>();
+                agrupamento.put(chaveOperadora, valoresPorTrimestre);
+            }
+
+            double valorAtual = valoresPorTrimestre.getOrDefault(chaveTrimestre,0.0);
+
+            valoresPorTrimestre.put(chaveTrimestre,valorAtual + registro.getValorDespesas());
+        }
+
+        List<DespesaAgregada> resultados = new ArrayList<>();
+
+        for (Map.Entry<String, Map<String,Double>> entrada : agrupamento.entrySet()) {
+
+            Map<String,Double> valoresPorTrimestre = entrada.getValue();
+            double total = 0.0;
+
+            for (double valor : valoresPorTrimestre.values()) {
+                total += valor;
+            }
+
+            double media = total / valoresPorTrimestre.size();
+            double somaQuadrados = 0.0;
+
+            for (double valor : valoresPorTrimestre.values()) {
+                double diferenca = valor - media;
+                somaQuadrados += diferenca * diferenca;
+            }
+
+            double desvioPadrao = Math.sqrt(somaQuadrados / valoresPorTrimestre.size());
+
+            String[] partes = entrada.getKey().split("\\|",2);
+
+            String razaoSocial = partes[0];
+            String uf = partes[1];
+
+            String regAns = "N/A";
+            String modalidade = "N/A";
+
+            for (RegistroDespesaEnriquecido dado : dados){
+
+                RegistroDespesa registro = dado.getRegistroDespesa();
+
+                if (registro.getRazaoSocial().equals(razaoSocial) &&
+                        (dado.getUf().equals(uf))) {
+
+                    regAns = dado.getRegAns();
+                    modalidade = dado.getModalidade();
+                    break;
+                    }
+                }
+
+            DespesaAgregada despesaAgregada = new DespesaAgregada(razaoSocial,regAns,modalidade,uf,total,media,desvioPadrao);
+            resultados.add(despesaAgregada);
+
+        }
+        resultados.sort(Comparator.comparingDouble(DespesaAgregada::getTotalDespesas).reversed());
+
+        salvarDespesasAgregadas(resultados, caminhoSaida);
+    }
+
+    private static void salvarDespesasAgregadas(List<DespesaAgregada> resultados, Path saida){
+
+        try {
+
+            Path pastaDestino = saida.getParent();
+
+            if (pastaDestino != null) {
+                Files.createDirectories(pastaDestino);
+            }
+
+            try (BufferedWriter writer = Files.newBufferedWriter(saida)) {
+
+                writer.write("RazaoSocial;RegistroANS;Modalidade;UF;TotalDespesas;MediaDespesasPorTrimestre;DesvioPadrao");
+                writer.newLine();
+
+                for (DespesaAgregada resultado : resultados){
+
+                    String linha = String.format(
+                            Locale.US,
+                            "%s;%s;%s;%s;%.2f;%.2f;%.2f",
+                            resultado.getRazaoSocial(),
+                            resultado.getRegistroAns(),
+                            resultado.getModalidade(),
+                            resultado.getUf(),
+                            resultado.getTotalDespesas(),
+                            resultado.getMediaPorTrimestre(),
+                            resultado.getDesvioPadrao()
+                    );
+
+                    writer.write(linha);
+                    writer.newLine();
+                }
+                System.out.println("Arquivo salvo em: " + saida.toAbsolutePath());
+            }
+
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Erro ao gerar arquivo", e);
+        }
     }
 
     private static double converterParaDouble(String texto) {

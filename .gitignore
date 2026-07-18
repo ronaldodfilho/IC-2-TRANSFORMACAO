@@ -1,5 +1,6 @@
 ### Arquivos de dados do desafio ###
 *.zip
+downloads/
 
 target/
 !.mvn/wrapper/maven-wrapper.jar
