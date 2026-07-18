@@ -8,18 +8,18 @@ import java.util.*;
 
 public class ValidadorService {
 
-    public static List<RegistroDespesa> carregarCsv (Path caminhoArquivo) {
+    public static List<RegistroDespesa> carregarCsv(Path caminhoArquivo) {
 
         List<RegistroDespesa> dadosValidados = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(caminhoArquivo.toFile()))){
+        try (BufferedReader reader = new BufferedReader(new FileReader(caminhoArquivo.toFile()))) {
 
             String linha;
             reader.readLine();
 
             while ((linha = reader.readLine()) != null) {
 
-               String[] colunas = linha.split(";");
+                String[] colunas = linha.split(";");
 
                 if (colunas.length < 5) continue;
 
@@ -29,7 +29,7 @@ public class ValidadorService {
                 String ano = colunas[3].trim();
                 Double valorDespesas = converterParaDouble(colunas[4].trim());
 
-                if(!ValidadorUtils.isCnpjValido(cnpj)) {
+                if (!ValidadorUtils.isCnpjValido(cnpj)) {
                     System.out.println("CNPJ invalido: " + cnpj);
                     continue;
                 }
@@ -44,25 +44,24 @@ public class ValidadorService {
                     continue;
                 }
 
-                dadosValidados.add( new RegistroDespesa(cnpj,razaoSocial,trimestre,ano,valorDespesas) );
+                dadosValidados.add(new RegistroDespesa(cnpj, razaoSocial, trimestre, ano, valorDespesas));
             }
-        }
-        catch (IOException e){
+        } catch (IOException e) {
             throw new RuntimeException("Erro ao ler o aquivo" + caminhoArquivo, e);
         }
         return dadosValidados;
     }
 
-    public static Map<String,OperadoraCadastro> carregarOperadoras(Path caminhoArquivo) {
+    public static Map<String, OperadoraCadastro> carregarOperadoras(Path caminhoArquivo) {
 
-        Map<String,OperadoraCadastro> operadoras = new HashMap<>();
+        Map<String, OperadoraCadastro> operadoras = new HashMap<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(caminhoArquivo.toFile()))) {
 
             String linha;
             reader.readLine();
 
-            while((linha = reader.readLine()) != null) {
+            while ((linha = reader.readLine()) != null) {
 
                 String[] colunas = linha.split(";");
 
@@ -73,7 +72,7 @@ public class ValidadorService {
                 String modalidade = colunas[4].replace("\"", "").trim();
                 String uf = colunas[10].replace("\"", "").trim();
 
-                operadoras.putIfAbsent(cnpj,new OperadoraCadastro(cnpj,regAns,modalidade,uf));
+                operadoras.putIfAbsent(cnpj, new OperadoraCadastro(cnpj, regAns, modalidade, uf));
 
             }
         } catch (IOException e) {
@@ -82,13 +81,13 @@ public class ValidadorService {
         return operadoras;
     }
 
-    public static List<RegistroDespesaEnriquecido> enriquecerDados (List<RegistroDespesa> registroDespesas, Map<String,OperadoraCadastro> operadoras) {
+    public static List<RegistroDespesaEnriquecido> enriquecerDados(List<RegistroDespesa> registroDespesas, Map<String, OperadoraCadastro> operadoras) {
 
         List<RegistroDespesaEnriquecido> dadosEnriquecidos = new ArrayList<>();
 
         for (RegistroDespesa registro : registroDespesas) {
 
-            String cnpjLimpo = registro.getCnpj().replaceAll("\\D","");
+            String cnpjLimpo = registro.getCnpj().replaceAll("\\D", "");
 
             OperadoraCadastro cadastro = operadoras.get(cnpjLimpo);
 
@@ -98,8 +97,7 @@ public class ValidadorService {
                         cadastro.getRegAns(),
                         cadastro.getModalidade(),
                         cadastro.getUf()));
-            }
-            else {
+            } else {
                 dadosEnriquecidos.add(new RegistroDespesaEnriquecido(
                         registro,
                         "N/A",
@@ -113,32 +111,32 @@ public class ValidadorService {
 
     public static void gerarDespesasAgregadas(List<RegistroDespesaEnriquecido> dados, Path caminhoSaida) {
 
-        Map<String, Map<String,Double>> agrupamento = new HashMap<>();
+        Map<String, Map<String, Double>> agrupamento = new HashMap<>();
 
-        for (RegistroDespesaEnriquecido dado : dados){
+        for (RegistroDespesaEnriquecido dado : dados) {
 
             RegistroDespesa registro = dado.getRegistroDespesa();
 
             String chaveOperadora = registro.getRazaoSocial() + "|" + dado.getUf();
             String chaveTrimestre = registro.getAno() + "|" + registro.getTrimestre();
 
-            Map<String,Double> valoresPorTrimestre = agrupamento.get(chaveOperadora);
+            Map<String, Double> valoresPorTrimestre = agrupamento.get(chaveOperadora);
 
             if (valoresPorTrimestre == null) {
                 valoresPorTrimestre = new HashMap<>();
                 agrupamento.put(chaveOperadora, valoresPorTrimestre);
             }
 
-            double valorAtual = valoresPorTrimestre.getOrDefault(chaveTrimestre,0.0);
+            double valorAtual = valoresPorTrimestre.getOrDefault(chaveTrimestre, 0.0);
 
-            valoresPorTrimestre.put(chaveTrimestre,valorAtual + registro.getValorDespesas());
+            valoresPorTrimestre.put(chaveTrimestre, valorAtual + registro.getValorDespesas());
         }
 
         List<DespesaAgregada> resultados = new ArrayList<>();
 
-        for (Map.Entry<String, Map<String,Double>> entrada : agrupamento.entrySet()) {
+        for (Map.Entry<String, Map<String, Double>> entrada : agrupamento.entrySet()) {
 
-            Map<String,Double> valoresPorTrimestre = entrada.getValue();
+            Map<String, Double> valoresPorTrimestre = entrada.getValue();
             double total = 0.0;
 
             for (double valor : valoresPorTrimestre.values()) {
@@ -155,7 +153,7 @@ public class ValidadorService {
 
             double desvioPadrao = Math.sqrt(somaQuadrados / valoresPorTrimestre.size());
 
-            String[] partes = entrada.getKey().split("\\|",2);
+            String[] partes = entrada.getKey().split("\\|", 2);
 
             String razaoSocial = partes[0];
             String uf = partes[1];
@@ -163,7 +161,7 @@ public class ValidadorService {
             String regAns = "N/A";
             String modalidade = "N/A";
 
-            for (RegistroDespesaEnriquecido dado : dados){
+            for (RegistroDespesaEnriquecido dado : dados) {
 
                 RegistroDespesa registro = dado.getRegistroDespesa();
 
@@ -173,10 +171,10 @@ public class ValidadorService {
                     regAns = dado.getRegAns();
                     modalidade = dado.getModalidade();
                     break;
-                    }
                 }
+            }
 
-            DespesaAgregada despesaAgregada = new DespesaAgregada(razaoSocial,regAns,modalidade,uf,total,media,desvioPadrao);
+            DespesaAgregada despesaAgregada = new DespesaAgregada(razaoSocial, regAns, modalidade, uf, total, media, desvioPadrao);
             resultados.add(despesaAgregada);
 
         }
@@ -185,7 +183,7 @@ public class ValidadorService {
         salvarDespesasAgregadas(resultados, caminhoSaida);
     }
 
-    private static void salvarDespesasAgregadas(List<DespesaAgregada> resultados, Path saida){
+    private static void salvarDespesasAgregadas(List<DespesaAgregada> resultados, Path saida) {
 
         try {
 
@@ -200,7 +198,7 @@ public class ValidadorService {
                 writer.write("RazaoSocial;RegistroANS;Modalidade;UF;TotalDespesas;MediaDespesasPorTrimestre;DesvioPadrao");
                 writer.newLine();
 
-                for (DespesaAgregada resultado : resultados){
+                for (DespesaAgregada resultado : resultados) {
 
                     String linha = String.format(
                             Locale.US,
@@ -220,8 +218,7 @@ public class ValidadorService {
                 System.out.println("Arquivo salvo em: " + saida.toAbsolutePath());
             }
 
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Erro ao gerar arquivo", e);
         }
     }
@@ -232,12 +229,11 @@ public class ValidadorService {
         String limpo = texto.trim().replace("\"", "");
         if (limpo.isEmpty() || limpo.equals("-")) return 0.0;
 
-        limpo = limpo.replace(",",".");
+        limpo = limpo.replace(",", ".");
 
         try {
             return Double.parseDouble(limpo);
-        }
-        catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             return 0.0;
         }
     }

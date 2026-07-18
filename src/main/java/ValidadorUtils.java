@@ -4,7 +4,7 @@ public class ValidadorUtils {
 
         if (cnpj == null) return false;
 
-        String cnpjLimpo = cnpj.replaceAll("\\D","");
+        String cnpjLimpo = cnpj.replaceAll("\\D", "");
 
         // Impede CNPJ com o mesmo número repetido (0000)
         if (cnpjLimpo.length() != 14 || cnpjLimpo.matches("(\\d)\\1{13}")) return false;
@@ -36,8 +36,7 @@ public class ValidadorUtils {
             // Verifica se o cálculo bate com os digitos do CNPJ
             return Character.getNumericValue(cnpjLimpo.charAt(12)) == digito1Esperado &&
                     Character.getNumericValue(cnpjLimpo.charAt(13)) == digito2Esperado;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
