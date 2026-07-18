@@ -20,7 +20,7 @@ public class Main {
         Path caminhoSaida = Path.of("downloads","despesas_agregadas.csv");
         ValidadorService.gerarDespesasAgregadas(dadosEnriquecidos, caminhoSaida);
 
-        Path caminhoZipFinal = Path.of("consolidado_despesas.zip");
+        Path caminhoZipFinal = Path.of("Teste_Ronaldo_Dutra_Filho.zip");
         compactarParaZip(caminhoSaida,caminhoZipFinal);
 
     }
